@@ -57,15 +57,24 @@ class WebsiteDownload:
             return cert_dir
 
     @classmethod
-    def store_file_content(cls, content, dir):
-        print u'当前正在下载文件：%s' % dir
-        with open(dir, 'ab') as f:
-            f.write(content)
-            f.flush()
+    def store_file_content(cls, content, file_dir):
+        print u'当前正在下载文件：%s' % file_dir
+        if not os.path.exists(file_dir):
+            with open(file_dir, 'w') as f:
+                f.write(content)
+                f.flush()
 
     @classmethod
-    def convert_assets_src(cls, content):
-        pass
+    def convert_and_download_assets_src(cls, content):
+        src_list = re.findall('src=.+\.\w+', content)
+        href_list = re.findall('href=.+\.\w+', content)
+        for src in src_list:
+            _src = re.sub(r"""src="|'""", '', src)
+            if len(_src):
+                print _src
+                f_type = _src.split('.')[-1]
+                if _src[0] == '/':
+                    pass
 
     def download_pages(self):
         if self.request_type == 'https':
@@ -75,6 +84,7 @@ class WebsiteDownload:
             response = requests.get(self.web_url)
         if str(response.status_code) == '200':
             page = response.content
+            WebsiteDownload.convert_and_download_assets_src(page)
             index_dir = os.path.join(self.download_dir, 'index.html')
             WebsiteDownload.store_file_content(page, index_dir)
 
