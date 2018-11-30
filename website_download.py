@@ -57,15 +57,16 @@ class WebsiteDownload:
             return cert_dir
 
     @classmethod
-    def store_file_content(cls, content, file_dir):
+    def store_file_content(cls, content, file_dir, response=None):
         print u'当前正在下载文件：%s' % file_dir
         if not os.path.exists(file_dir):
+            if not response:
+
             with open(file_dir, 'w') as f:
                 f.write(content)
                 f.flush()
 
-    @classmethod
-    def convert_and_download_assets_src(cls, content):
+    def convert_and_download_assets_src(self, content):
         src_list = re.findall('src=.+\.\w+', content)
         href_list = re.findall('href=.+\.\w+', content)
         for src in src_list:
@@ -73,8 +74,15 @@ class WebsiteDownload:
             if len(_src):
                 print _src
                 f_type = _src.split('.')[-1]
+                # 静态资源服务器为域名指向服务器
                 if _src[0] == '/':
-                    pass
+                    file_src = self.request_type + '://' + self.domain + _src
+
+
+    def download_file(self, file_path):
+        if not os.path.exists(file_path):
+            response = requests.get(file_path)
+
 
     def download_pages(self):
         if self.request_type == 'https':
@@ -84,9 +92,8 @@ class WebsiteDownload:
             response = requests.get(self.web_url)
         if str(response.status_code) == '200':
             page = response.content
-            WebsiteDownload.convert_and_download_assets_src(page)
+            self.convert_and_download_assets_src(page)
             index_dir = os.path.join(self.download_dir, 'index.html')
-            WebsiteDownload.store_file_content(page, index_dir)
 
         else:
             print u'获取页面失败'
