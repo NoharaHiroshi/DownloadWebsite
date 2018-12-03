@@ -22,6 +22,7 @@ class WebsiteDownload:
             print u'当前请求URL不符合规则，请输入完整URL，例如：https://www.baidu.com'
             return
         self.ip = socket.gethostbyname(self.domain)
+        # 设置静态资源路径
         self.download_dir = os.path.join(os.path.dirname(__file__).replace('/', '\\'), self.domain)
         self.static_dir = os.path.join(self.download_dir, 'static')
         self.js_dir = os.path.join(self.static_dir, 'js')
@@ -57,26 +58,43 @@ class WebsiteDownload:
             return cert_dir
 
     @classmethod
-    def store_file_content(cls, content, file_dir, response=None):
+    def store_file_content(cls, file_dir, content):
         print u'当前正在下载文件：%s' % file_dir
         if not os.path.exists(file_dir):
-            if not response:
-
             with open(file_dir, 'w') as f:
                 f.write(content)
                 f.flush()
 
     def convert_and_download_assets_src(self, content):
-        src_list = re.findall('src=.+\.\w+', content)
-        href_list = re.findall('href=.+\.\w+', content)
-        for src in src_list:
-            _src = re.sub(r"""src="|'""", '', src)
-            if len(_src):
-                print _src
-                f_type = _src.split('.')[-1]
-                # 静态资源服务器为域名指向服务器
-                if _src[0] == '/':
-                    file_src = self.request_type + '://' + self.domain + _src
+        for url_type in ['src', 'href']:
+            url_list = re.findall('%s=.+\.\w+' % url_type, content)
+            for src in url_list:
+                _src = re.sub(r"""%s="|'""" % url_type, '', src)
+                if len(_src):
+                    if url_type == 'href':
+                        if _src[0] == '#':
+                            continue
+                    f_type = _src.split('.')[-1]
+                    file_name = _src.split('/')[-1]
+                    if f_type == 'js':
+                        download_file_dir = os.path.join(self.js_dir, file_name)
+                    elif f_type in ['css', 'scss']:
+                        download_file_dir = os.path.join(self.css_dir, file_name)
+                    elif f_type in ['ico', 'png', 'jpg', 'jpeg', 'gif']:
+                        download_file_dir = os.path.join(self.img_dir, file_name)
+                    else:
+                        continue
+                    # 静态资源服务器为域名指向服务器
+                    if _src[0] == '/':
+                        download_file_src = self.request_type + '://' + self.domain + _src
+                    else:
+                        download_file_src = _src
+                    # 下载静态资源
+                    response = requests.get(download_file_src)
+                    if str(response.status_code) == '200':
+                        static_content = response.content
+                        WebsiteDownload.store_file_content(download_file_dir, static_content)
+                    # 更改静态资源相对路径
 
 
     def download_file(self, file_path):
@@ -85,16 +103,15 @@ class WebsiteDownload:
 
 
     def download_pages(self):
-        if self.request_type == 'https':
-            cert_dir = self.get_cert_dir()
-            response = requests.get(self.web_url, cert=cert_dir)
-        else:
-            response = requests.get(self.web_url)
+        response = requests.get(self.web_url)
         if str(response.status_code) == '200':
-            page = response.content
-            self.convert_and_download_assets_src(page)
+            content = response.content
+            # 转换静态资源路径为相对路径，并下载静态资源
+            src_list = re.findall('src=.+\.\w+', content)
+            href_list = re.findall('href=.+\.\w+', content)
+            self.convert_and_download_assets_src(src_list, 'src', content)
+            self.convert_and_download_assets_src(href_list, 'href', content)
             index_dir = os.path.join(self.download_dir, 'index.html')
-
         else:
             print u'获取页面失败'
 
