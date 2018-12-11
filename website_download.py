@@ -87,7 +87,7 @@ class WebsiteDownload:
                     os.mkdir(_path)
             return os.path.join(self.download_dir, url[1:])
 
-    def handle_css_image(self, css_file):
+    def handle_css_image(self, css_content):
         """
         处理静态文件，查找其中的图片资源
         :param css_file:
@@ -119,9 +119,6 @@ class WebsiteDownload:
                     f_type = _src.split('.')[-1]
                     if f_type not in self.download_type_list:
                         continue
-                    # css样式文件中可能存在着静态文件，比如图片
-                    if f_type in ['css', 'scss']:
-                        pass
                     # 获取静态资源url
                     if _src[0] == '/':
                         download_file_src = self.request_type + '://' + self.domain + _src
@@ -132,6 +129,27 @@ class WebsiteDownload:
                     # 下载静态资源
                     WebsiteDownload.store_file_content(download_file_src, download_file_dir)
                     content = content.replace(_src, '.%s' % _src)
+                    # css样式文件中可能存在着静态文件，比如图片
+                    if f_type in ['css', 'scss']:
+                        cur_dir = os.path.dirname(download_file_dir)
+                        print cur_dir
+                        with open(download_file_dir, 'r') as f:
+                            css_content = '\n'.join(f.readlines())
+                            # 不知道为什么分组不可用
+                            css_url_list = re.findall(r'\(.+\.jpeg|\(.+\.png|\(.+\.jpg|\(.+\.gif', css_content)
+                            css_url_list = [item.replace('(', '') for item in css_url_list]
+                            for css_url in css_url_list:
+                                last_layer_dir_flag = css_url.split('..')
+                                left_dir = last_layer_dir_flag[-1][1:]
+                                last_layer_count = len(last_layer_dir_flag) - 1
+                                _cur_dir = cur_dir
+                                while last_layer_count > 0:
+                                    _cur_dir = os.path.dirname(_cur_dir)
+                                    last_layer_count -= 1
+                                css_dir = os.path.join(_cur_dir, left_dir)
+                                css_url = self.request_type + '://' + self.domain + left_dir
+                                print css_dir, css_url
+
         return content
 
     # 主页入口
