@@ -25,27 +25,14 @@ class WebsiteDownload:
         self.ip = socket.gethostbyname(self.domain)
         # 设置静态资源路径
         self.download_dir = os.path.join(os.path.dirname(__file__).replace('/', '\\'), self.domain)
-        self.static_dir = os.path.join(self.download_dir, 'static')
-        self.js_dir = os.path.join(self.static_dir, 'js')
-        self.css_dir = os.path.join(self.static_dir, 'css')
-        self.img_dir = os.path.join(self.static_dir, 'img')
+        # 设置可下载文件的后缀名
+        self.download_type_list = ['js', 'css', 'scss', 'png', 'jpg', 'jpeg', 'gif', 'ico']
 
     def main(self):
         # 初始化目录结构
-        self.init_dir()
-        self.download_pages()
-
-    def init_dir(self):
         if not os.path.exists(self.download_dir):
             os.mkdir(self.download_dir)
-        if not os.path.exists(self.static_dir):
-            os.mkdir(self.static_dir)
-        if not os.path.exists(self.css_dir):
-            os.mkdir(self.css_dir)
-        if not os.path.exists(self.js_dir):
-            os.mkdir(self.js_dir)
-        if not os.path.exists(self.img_dir):
-            os.mkdir(self.img_dir)
+        self.download_pages()
 
     def get_cert_dir(self):
         cert_dir = os.path.join(self.download_dir, 'cert.pem')
@@ -63,15 +50,16 @@ class WebsiteDownload:
         """
         :param download_file_src: 静态资源url
         :param file_dir: 下载目录dir
+        :param times: 重试下载次数
         :return:
         """
         try:
             response = requests.get(download_file_src)
             if str(response.status_code) == '200':
                 content = response.content
-                print u'当前正在下载文件：%s' % file_dir
                 if not os.path.exists(file_dir):
-                    with open(file_dir, 'w') as f:
+                    print u'当前正在下载文件：%s' % file_dir
+                    with open(file_dir, 'ab') as f:
                         f.write(content)
                         f.flush()
             else:
@@ -84,6 +72,21 @@ class WebsiteDownload:
         except Exception as e:
             print traceback.format_exc(e)
 
+    def create_assets_path_dir(self, url):
+        """
+        :param url: 静态文件的url
+        :return: 返回本地目录的路径
+        """
+        if url[0] == '/':
+            path_list = url.split('/')
+            path_list_len = len(path_list)
+            for i in range(1, path_list_len-1):
+                tmp_path = '/'.join(path_list[1:i+1])
+                _path = os.path.join(self.download_dir, tmp_path)
+                if not os.path.exists(_path):
+                    os.mkdir(_path)
+            return os.path.join(self.download_dir, url[1:])
+
     def convert_and_download_assets_src(self, content):
         # 获取url类型
         for url_type in ['src', 'href']:
@@ -94,27 +97,20 @@ class WebsiteDownload:
                     if url_type == 'href':
                         if _src[0] == '#':
                             continue
-                    # 文件类型
+                    # 文件后缀名
                     f_type = _src.split('.')[-1]
-                    # 文件名
-                    file_name = _src.split('/')[-1]
-                    if f_type == 'js':
-                        download_file_dir = os.path.join(self.js_dir, file_name)
-                    elif f_type in ['css', 'scss']:
-                        download_file_dir = os.path.join(self.css_dir, file_name)
-                    elif f_type in ['ico', 'png', 'jpg', 'jpeg', 'gif']:
-                        download_file_dir = os.path.join(self.img_dir, file_name)
-                    else:
+                    if f_type not in self.download_type_list:
                         continue
-                    # 已"/"开头的静态资源
+                    # 获取静态资源url
                     if _src[0] == '/':
                         download_file_src = self.request_type + '://' + self.domain + _src
                     else:
                         download_file_src = _src
+                    # 更改静态资源相对路径
+                    download_file_dir = self.create_assets_path_dir(_src)
                     # 下载静态资源
                     WebsiteDownload.store_file_content(download_file_src, download_file_dir)
-                    # 更改静态资源相对路径
-
+                    print _src
 
 
     # 主页入口
