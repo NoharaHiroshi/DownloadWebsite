@@ -87,6 +87,14 @@ class WebsiteDownload:
                     os.mkdir(_path)
             return os.path.join(self.download_dir, url[1:])
 
+    def handle_css_image(self, css_file):
+        """
+        处理静态文件，查找其中的图片资源
+        :param css_file:
+        :return:
+        """
+        pass
+
     def convert_and_download_assets_src(self, content):
         """
         查找当前页面代码中的静态文件并下载，并变更静态文件的路径
@@ -111,6 +119,9 @@ class WebsiteDownload:
                     f_type = _src.split('.')[-1]
                     if f_type not in self.download_type_list:
                         continue
+                    # css样式文件中可能存在着静态文件，比如图片
+                    if f_type in ['css', 'scss']:
+                        pass
                     # 获取静态资源url
                     if _src[0] == '/':
                         download_file_src = self.request_type + '://' + self.domain + _src
