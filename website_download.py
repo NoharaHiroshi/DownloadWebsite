@@ -88,15 +88,25 @@ class WebsiteDownload:
             return os.path.join(self.download_dir, url[1:])
 
     def convert_and_download_assets_src(self, content):
+        """
+        查找当前页面代码中的静态文件并下载，并变更静态文件的路径
+        :param content: 当前页面代码
+        :return: 变更静态文件链接后的页面代码
+        """
         # 获取url类型
         for url_type in ['src', 'href']:
             url_list = re.findall('%s=.+\.\w+' % url_type, content)
+            tmp_url_list = list()
             for src in url_list:
                 _src = re.sub(r"""%s="|'""" % url_type, '', src)
                 if len(_src):
                     if url_type == 'href':
                         if _src[0] == '#':
                             continue
+                    if _src not in tmp_url_list:
+                        tmp_url_list.append(_src)
+                    else:
+                        continue
                     # 文件后缀名
                     f_type = _src.split('.')[-1]
                     if f_type not in self.download_type_list:
@@ -110,16 +120,20 @@ class WebsiteDownload:
                     download_file_dir = self.create_assets_path_dir(_src)
                     # 下载静态资源
                     WebsiteDownload.store_file_content(download_file_src, download_file_dir)
-                    print _src
-
+                    content = content.replace(_src, '.%s' % _src)
+        return content
 
     # 主页入口
     def download_pages(self):
         response = requests.get(self.web_url)
         if str(response.status_code) == '200':
             content = response.content
-            self.convert_and_download_assets_src(content)
+            content = self.convert_and_download_assets_src(content)
             index_dir = os.path.join(self.download_dir, 'index.html')
+            if not os.path.exists(index_dir):
+                with open(index_dir, 'ab') as f:
+                    f.write(content)
+                    f.flush()
         else:
             print u'获取页面失败'
 
