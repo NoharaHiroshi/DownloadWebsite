@@ -27,14 +27,12 @@ class WebsiteDownload:
         self.download_dir = os.path.join(os.path.dirname(__file__).replace('/', '\\'), self.domain)
         # 设置可下载文件的后缀名
         self.download_type_list = ['js', 'css', 'scss', 'png', 'jpg', 'jpeg', 'gif', 'ico']
-        # 静态资源目录层
-        self.resource_layer_list = list()
 
     def main(self):
         # 初始化目录结构
         if not os.path.exists(self.download_dir):
             os.mkdir(self.download_dir)
-        self.download_pages()
+        self.download_pages(self.web_url)
 
     def get_cert_dir(self):
         cert_dir = os.path.join(self.download_dir, 'cert.pem')
@@ -89,13 +87,31 @@ class WebsiteDownload:
                     os.mkdir(_path)
             return os.path.join(self.download_dir, url[1:])
 
-    def handle_css_image(self, css_content):
+    def handle_css_image(self, download_file_dir):
         """
         处理静态文件，查找其中的图片资源
-        :param css_file:
-        :return:
+        :param download_file_dir: css文件路径
+        :return: None
         """
-        pass
+        # 判断css文件所处的位置作为根目录
+        cur_dir = os.path.dirname(download_file_dir)
+        with open(download_file_dir, 'r') as f:
+            css_content = '\n'.join(f.readlines())
+            # 不知道为什么分组不可用
+            css_url_list = re.findall(r'\(.+\.jpeg|\(.+\.png|\(.+\.jpg|\(.+\.gif', css_content)
+            css_url_list = [item.replace('(', '') for item in css_url_list]
+            for css_url in css_url_list:
+                last_layer_dir_flag = css_url.split('..')
+                left_dir = last_layer_dir_flag[-1][1:]
+                last_layer_count = len(last_layer_dir_flag) - 1
+                _cur_dir = cur_dir
+                while last_layer_count > 0:
+                    _cur_dir = os.path.dirname(_cur_dir)
+                    last_layer_count -= 1
+                img_dir = os.path.join(_cur_dir, left_dir)
+                img_uri = img_dir.split(self.download_dir)[-1].replace('\\', '/')
+                img_url = self.request_type + '://' + self.domain + img_uri
+                WebsiteDownload.store_file_content(img_url, img_dir)
 
     def convert_and_download_assets_src(self, content):
         """
@@ -103,71 +119,69 @@ class WebsiteDownload:
         :param content: 当前页面代码
         :return: 变更静态文件链接后的页面代码
         """
-        # 获取url类型
         for url_type in ['src', 'href']:
             url_list = re.findall('%s=.+\.\w+' % url_type, content)
             tmp_url_list = list()
-            for src in url_list:
-                _src = re.sub(r"""%s="|'""" % url_type, '', src)
-                if len(_src):
+            for url in url_list:
+                _url = re.sub(r"""%s="|'""" % url_type, '', url)
+                if len(_url):
                     if url_type == 'href':
-                        if _src[0] == '#':
+                        if _url[0] == '#':
                             continue
-                    if _src not in tmp_url_list:
-                        tmp_url_list.append(_src)
+                    # 防止下载重复静态资源
+                    if _url not in tmp_url_list:
+                        tmp_url_list.append(_url)
                     else:
                         continue
-                    # 文件后缀名
-                    f_type = _src.split('.')[-1]
+                    # 筛选静态资源后缀
+                    f_type = _url.split('.')[-1]
                     if f_type not in self.download_type_list:
                         continue
 
                     # 获取静态资源url
-                    if _src[0] == '/':
-                        download_file_src = self.request_type + '://' + self.domain + _src
+                    if _url[0] == '/':
+                        download_file_src = self.request_type + '://' + self.domain + _url
                     else:
-                        download_file_src = _src
+                        download_file_src = _url
                     # 更改静态资源相对路径
-                    download_file_dir = self.create_assets_path_dir(_src)
+                    download_file_dir = self.create_assets_path_dir(_url)
                     # 下载静态资源
                     WebsiteDownload.store_file_content(download_file_src, download_file_dir)
-                    content = content.replace(_src, '.%s' % _src)
+                    # 替换静态资源路径
+                    content = content.replace(_url, '.%s' % _url)
                     # css样式文件中可能存在着静态文件，比如图片
                     if f_type in ['css', 'scss']:
-                        cur_dir = os.path.dirname(download_file_dir)
-                        print cur_dir
-                        with open(download_file_dir, 'r') as f:
-                            css_content = '\n'.join(f.readlines())
-                            # 不知道为什么分组不可用
-                            css_url_list = re.findall(r'\(.+\.jpeg|\(.+\.png|\(.+\.jpg|\(.+\.gif', css_content)
-                            css_url_list = [item.replace('(', '') for item in css_url_list]
-                            for css_url in css_url_list:
-                                last_layer_dir_flag = css_url.split('..')
-                                left_dir = last_layer_dir_flag[-1][1:]
-                                last_layer_count = len(last_layer_dir_flag) - 1
-                                _cur_dir = cur_dir
-                                while last_layer_count > 0:
-                                    _cur_dir = os.path.dirname(_cur_dir)
-                                    last_layer_count -= 1
-                                css_dir = os.path.join(_cur_dir, left_dir)
-                                css_uri = css_dir.split(self.download_dir)[-1].replace('\\', '/')
-                                css_url = self.request_type + '://' + self.domain + css_uri
-                                WebsiteDownload.store_file_content(css_url, css_dir)
+                        self.handle_css_image(download_file_dir)
         return content
 
-    # 主页入口
-    def download_pages(self):
-        response = requests.get(self.web_url)
-        if str(response.status_code) == '200':
-            content = response.content
-            content = self.convert_and_download_assets_src(content)
-            index_dir = os.path.join(self.download_dir, 'index.html')
-            if not os.path.exists(index_dir):
-                with open(index_dir, 'ab') as f:
-                    f.write(content)
-                    f.flush()
-        else:
-            print u'获取页面失败'
+    # 下载页面
+    def download_pages(self, web_url, times=0):
+        """
+        下载页面代码并存储在本地，同时处理构成页面所需的静态资源（下载和按照本地路径重新构造静态资源的相对位置）
+        :param web_url: 页面url
+        :param times: 重试次数
+        :return: None
+        """
+        try:
+            response = requests.get(web_url)
+            if str(response.status_code) == '200':
+                content = response.content
+                content = self.convert_and_download_assets_src(content)
+                index_dir = os.path.join(self.download_dir, 'index.html')
+                if not os.path.exists(index_dir):
+                    with open(index_dir, 'ab') as f:
+                        f.write(content)
+                        f.flush()
+            else:
+                times += 1
+                print u'获取页面%s 失败，尝试第%s次重新获取' % (web_url, times)
+                if times == 10:
+                    print u'获取页面%s 获取失败' % web_url
+                    return
+                self.download_pages(web_url, times)
+        except Exception as e:
+            print u'获取页面%s 错误' % web_url
+            print traceback.format_exc(e)
 
 if __name__ == '__main__':
     url = r'http://www.blockfundchain.cn'
