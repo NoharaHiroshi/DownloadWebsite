@@ -77,15 +77,29 @@ class WebsiteDownload:
         :param url: 静态文件的url
         :return: 返回本地目录的路径
         """
+        path_list_len = 0
+        path_list = list()
         if url[0] == '/':
             path_list = url.split('/')
             path_list_len = len(path_list)
-            for i in range(1, path_list_len-1):
-                tmp_path = '/'.join(path_list[1:i+1])
-                _path = os.path.join(self.download_dir, tmp_path)
-                if not os.path.exists(_path):
-                    os.mkdir(_path)
-            return os.path.join(self.download_dir, url[1:])
+        if url[:4] == 'http':
+            path_list = url.split('/')
+            # 站内静态文件
+            if path_list[2] == self.domain:
+                url = url.replace('%s://%s' % (self.request_type, self.domain), '')
+                path_list = url.split('/')
+                path_list_len = len(path_list)
+            else:
+                url = '/' + '/'.join(path_list[3:])
+                path_list = url.split('/')
+                path_list_len = len(path_list)
+        for i in range(1, path_list_len-1):
+            tmp_path = '/'.join(path_list[1:i+1])
+            _path = os.path.join(self.download_dir, tmp_path)
+            if not os.path.exists(_path):
+                os.mkdir(_path)
+        return os.path.join(self.download_dir, url[1:])
+
 
     def handle_css_image(self, download_file_dir):
         """
@@ -141,6 +155,8 @@ class WebsiteDownload:
                     # 获取静态资源url
                     if _url[0] == '/':
                         download_file_src = self.request_type + '://' + self.domain + _url
+                        if _url[1] == '/':
+                            download_file_src = self.request_type + ':' + _url
                     else:
                         download_file_src = _url
                     # 更改静态资源相对路径
@@ -172,6 +188,7 @@ class WebsiteDownload:
                     with open(index_dir, 'ab') as f:
                         f.write(content)
                         f.flush()
+                print u'获取页面%s 完成' % web_url
             else:
                 times += 1
                 print u'获取页面%s 失败，尝试第%s次重新获取' % (web_url, times)
@@ -184,6 +201,6 @@ class WebsiteDownload:
             print traceback.format_exc(e)
 
 if __name__ == '__main__':
-    url = r'http://www.blockfundchain.cn'
+    url = r'http://www.w3school.com.cn/css/index.asp'
     wd = WebsiteDownload(url)
     wd.main()
