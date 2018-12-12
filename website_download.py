@@ -23,10 +23,12 @@ class WebsiteDownload:
             print u'当前请求URL不符合规则，请输入完整URL，例如：https://www.baidu.com'
             return
         self.ip = socket.gethostbyname(self.domain)
-        # 设置静态资源路径
+        # 设置项目路径
         self.download_dir = os.path.join(os.path.dirname(__file__).replace('/', '\\'), self.domain)
         # 设置可下载文件的后缀名
         self.download_type_list = ['js', 'css', 'scss', 'png', 'jpg', 'jpeg', 'gif', 'ico']
+        # 静态资源目录层
+        self.resource_layer_list = list()
 
     def main(self):
         # 初始化目录结构
@@ -119,6 +121,7 @@ class WebsiteDownload:
                     f_type = _src.split('.')[-1]
                     if f_type not in self.download_type_list:
                         continue
+
                     # 获取静态资源url
                     if _src[0] == '/':
                         download_file_src = self.request_type + '://' + self.domain + _src
@@ -147,9 +150,9 @@ class WebsiteDownload:
                                     _cur_dir = os.path.dirname(_cur_dir)
                                     last_layer_count -= 1
                                 css_dir = os.path.join(_cur_dir, left_dir)
-                                css_url = self.request_type + '://' + self.domain + left_dir
-                                print css_dir, css_url
-
+                                css_uri = css_dir.split(self.download_dir)[-1].replace('\\', '/')
+                                css_url = self.request_type + '://' + self.domain + css_uri
+                                WebsiteDownload.store_file_content(css_url, css_dir)
         return content
 
     # 主页入口
