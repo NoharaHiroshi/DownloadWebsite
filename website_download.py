@@ -134,7 +134,8 @@ class WebsiteDownload:
         :return: 变更静态文件链接后的页面代码
         """
         for url_type in ['src', 'href']:
-            url_list = re.findall('%s=.+\.\w+' % url_type, content)
+            file_type_reg = '(%s)' % '|'.join(['.+?\.%s' % t for t in self.download_type_list])
+            url_list = re.findall('%s=%s' % (url_type, file_type_reg), content)
             tmp_url_list = list()
             for url in url_list:
                 _url = re.sub(r"""%s="|'""" % url_type, '', url)
@@ -201,6 +202,6 @@ class WebsiteDownload:
             print traceback.format_exc(e)
 
 if __name__ == '__main__':
-    url = r'http://www.w3school.com.cn/css/index.asp'
+    url = r'http://developer.blockfundchain.net/bfchome/#/'
     wd = WebsiteDownload(url)
     wd.main()
