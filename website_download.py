@@ -10,9 +10,18 @@ import traceback
 
 class WebsiteDownload:
     def __init__(self, web_url):
+        url_part_list = web_url.split('/')
+        tmp_url_part_list = list()
+        # 主要目的为了检测前端路由
+        for i, url_part in enumerate(url_part_list):
+            if url_part == '#':
+                tmp_url_part_list = url_part_list[:i]
+                break
+        web_url = '/'.join(tmp_url_part_list)
         self.info = web_url.split('://')
         self.web_url = web_url
         if len(self.info) == 2:
+            # 域名
             self.domain = self.info[1].split('/')[0]
             self.request_type = self.info[0]
             if self.request_type == 'https':
@@ -27,8 +36,10 @@ class WebsiteDownload:
         self.download_dir = os.path.join(os.path.dirname(__file__).replace('/', '\\'), self.domain)
         # 设置可下载文件的后缀名
         self.download_type_list = ['js', 'css', 'scss', 'png', 'jpg', 'jpeg', 'gif', 'ico']
-        # 当前页面URL
-        self.current_page_url = web_url if web_url[-2:] != '#/' else web_url[:-2]
+        # 静态资源根目录地址，默认为域名
+        self.resource_root_url = self.domain
+        # 静态资源url列表
+        self.resource_url_list = list()
 
     def main(self):
         # 初始化目录结构
@@ -155,15 +166,15 @@ class WebsiteDownload:
                     if f_type not in self.download_type_list:
                         continue
 
-                    # 获取静态资源url
+                    # 获得完整静态资源url
+                    download_file_src = _url
                     if _url[0] == '/':
-                        download_file_src = self.request_type + '://' + self.domain + _url
-                        if _url[1] == '/':
-                            download_file_src = self.request_type + ':' + _url
-                    elif _url[0] == '.':
-                        download_file_src = self.current_page_url + _url[2:]
-                    else:
-                        download_file_src = _url
+                        download_file_src = self.request_type + '://' + self.resource_root_url + _url
+                    if _url[0] == '.':
+                        tmp_url_list = _url.split('/')[1:]
+                        self.resource_root_url = self.web_url
+                        download_file_src = self.resource_root_url + _url[2:]
+
                     # 更改静态资源相对路径
                     download_file_dir = self.create_assets_path_dir(download_file_src)
                     # 下载静态资源
@@ -206,6 +217,6 @@ class WebsiteDownload:
             print traceback.format_exc(e)
 
 if __name__ == '__main__':
-    url = r'http://developer.blockfundchain.net/bfchome/#/'
+    url = r'http://developer.blockfundchain.net/bfchome/#/test'
     wd = WebsiteDownload(url)
     wd.main()
