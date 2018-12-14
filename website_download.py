@@ -85,33 +85,31 @@ class WebsiteDownload:
         except Exception as e:
             print traceback.format_exc(e)
 
-    def create_assets_path_dir(self, url):
+    def create_assets_path_dir(self, _url):
         """
         :param url: 静态文件的url
-        :return: 返回本地目录的路径
+        :return: 返回本地目录的路径, 完整静态资源url
         """
-        path_list_len = 0
-        path_list = list()
-        if url[0] == '/':
-            path_list = url.split('/')
-            path_list_len = len(path_list)
-        if url[:4] == 'http':
-            path_list = url.split('/')
-            # 站内静态文件
-            if path_list[2] == self.domain:
-                url = url.replace('%s://%s' % (self.request_type, self.domain), '')
-                path_list = url.split('/')
-                path_list_len = len(path_list)
-            else:
-                url = '/' + '/'.join(path_list[3:])
-                path_list = url.split('/')
-                path_list_len = len(path_list)
-        for i in range(1, path_list_len-1):
+        path_list = _url.split('/')
+        # 站内静态文件
+        if _url[:4] == 'http':
+            resource_url = _url
+            # 需完善
+        if _url[0] == '/':
+            resource_url = self.request_type + '://' + self.domain + _url
+            resource_dir = os.path.join(self.download_dir, _url[1:])
+            local_url = _url
+        if _url[0] == '.':
+            self.resource_root_url = self.web_url
+            resource_url = self.resource_root_url + '/' + _url[2:]
+            resource_dir = os.path.join(self.download_dir, _url[2:])
+            local_url = _url[1:]
+        for i in range(1, len(path_list) - 1):
             tmp_path = '/'.join(path_list[1:i+1])
             _path = os.path.join(self.download_dir, tmp_path)
             if not os.path.exists(_path):
                 os.mkdir(_path)
-        return os.path.join(self.download_dir, url[1:])
+        return resource_url, resource_dir, local_url
 
 
     def handle_css_image(self, download_file_dir):
@@ -153,6 +151,7 @@ class WebsiteDownload:
             for url in url_list:
                 _url = re.sub(r"""%s="|'""" % url_type, '', url)
                 if len(_url):
+                    # 过滤锚点
                     if url_type == 'href':
                         if _url[0] == '#':
                             continue
@@ -166,21 +165,15 @@ class WebsiteDownload:
                     if f_type not in self.download_type_list:
                         continue
 
-                    # 获得完整静态资源url
-                    download_file_src = _url
-                    if _url[0] == '/':
-                        download_file_src = self.request_type + '://' + self.resource_root_url + _url
-                    if _url[0] == '.':
-                        tmp_url_list = _url.split('/')[1:]
-                        self.resource_root_url = self.web_url
-                        download_file_src = self.resource_root_url + _url[2:]
+                    download_file_src, download_file_dir, local_url = self.create_assets_path_dir(_url)
+                    print local_url
+                    print download_file_src
+                    print download_file_dir
 
-                    # 更改静态资源相对路径
-                    download_file_dir = self.create_assets_path_dir(download_file_src)
                     # 下载静态资源
                     WebsiteDownload.store_file_content(download_file_src, download_file_dir)
                     # 替换静态资源路径
-                    content = content.replace(_url, '.%s' % _url)
+                    content = content.replace(_url, '.%s' % local_url)
                     # css样式文件中可能存在着静态文件，比如图片
                     if f_type in ['css', 'scss']:
                         self.handle_css_image(download_file_dir)
