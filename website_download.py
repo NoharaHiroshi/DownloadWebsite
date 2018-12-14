@@ -27,6 +27,8 @@ class WebsiteDownload:
         self.download_dir = os.path.join(os.path.dirname(__file__).replace('/', '\\'), self.domain)
         # 设置可下载文件的后缀名
         self.download_type_list = ['js', 'css', 'scss', 'png', 'jpg', 'jpeg', 'gif', 'ico']
+        # 当前页面URL
+        self.current_page_url = web_url if web_url[-2:] != '#/' else web_url[:-2]
 
     def main(self):
         # 初始化目录结构
@@ -158,10 +160,12 @@ class WebsiteDownload:
                         download_file_src = self.request_type + '://' + self.domain + _url
                         if _url[1] == '/':
                             download_file_src = self.request_type + ':' + _url
+                    elif _url[0] == '.':
+                        download_file_src = self.current_page_url + _url[2:]
                     else:
                         download_file_src = _url
                     # 更改静态资源相对路径
-                    download_file_dir = self.create_assets_path_dir(_url)
+                    download_file_dir = self.create_assets_path_dir(download_file_src)
                     # 下载静态资源
                     WebsiteDownload.store_file_content(download_file_src, download_file_dir)
                     # 替换静态资源路径
