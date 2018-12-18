@@ -17,6 +17,7 @@ class WebsiteDownload:
             if url_part == '#':
                 tmp_url_part_list = url_part_list[:i]
                 break
+        tmp_url_part_list = tmp_url_part_list if tmp_url_part_list else url_part_list
         web_url = '/'.join(tmp_url_part_list)
         self.info = web_url.split('://')
         self.web_url = web_url
@@ -87,10 +88,11 @@ class WebsiteDownload:
 
     def create_assets_path_dir(self, _url):
         """
-        :param url: 静态文件的url
+        :param _url: 静态文件的url
         :return: 返回本地目录的路径, 完整静态资源url
         """
         path_list = _url.split('/')
+        resource_url, resource_dir, local_url = [None, None, None]
         # 站内静态文件
         if _url[:4] == 'http':
             resource_url = _url
@@ -110,7 +112,6 @@ class WebsiteDownload:
             if not os.path.exists(_path):
                 os.mkdir(_path)
         return resource_url, resource_dir, local_url
-
 
     def handle_css_image(self, download_file_dir):
         """
@@ -210,6 +211,6 @@ class WebsiteDownload:
             print traceback.format_exc(e)
 
 if __name__ == '__main__':
-    url = r'http://developer.blockfundchain.net/bfchome/#/test'
+    url = r'http://www.blockfundchain.com'
     wd = WebsiteDownload(url)
     wd.main()
