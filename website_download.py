@@ -154,9 +154,10 @@ class WebsiteDownload:
             file_type_reg = '(%s)' % '|'.join(['.+?\.%s' % t for t in self.download_type_list])
             reg_str = '%s=%s' % (url_type, file_type_reg)
             url_list = re.findall(reg_str, content)
+            url_list = [url.replace('"', '') for url in url_list]
             tmp_url_list = list()
             for url in url_list:
-                _url = re.sub(r"""%s="|'""" % url_type, '', url)
+                _url = re.sub(r"%s=" % url_type, '', url)
                 if len(_url):
                     # 过滤锚点
                     if url_type == 'href':
@@ -214,6 +215,6 @@ class WebsiteDownload:
             print traceback.format_exc(e)
 
 if __name__ == '__main__':
-    url = r'http://www.blockfundchain.com'
+    url = r'http://www.blockfundchain.cn'
     wd = WebsiteDownload(url)
     wd.main()
