@@ -215,6 +215,6 @@ class WebsiteDownload:
             print traceback.format_exc(e)
 
 if __name__ == '__main__':
-    url = r'http://www.blockfundchain.cn'
+    url = r'http://www.weisanyun.com/block_integral.html'
     wd = WebsiteDownload(url)
     wd.main()
