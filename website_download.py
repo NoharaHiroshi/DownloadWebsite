@@ -72,6 +72,7 @@ class WebsiteDownload:
             if str(response.status_code) == '200':
                 content = response.content
                 if not os.path.exists(file_dir):
+                    print u'当前正在下载文件地址：%s' % download_file_src
                     print u'当前正在下载文件：%s' % file_dir
                     with open(file_dir, 'ab') as f:
                         f.write(content)
@@ -96,6 +97,7 @@ class WebsiteDownload:
         # 站内静态文件
         if _url[:4] == 'http':
             resource_url = _url
+            path_list = path_list[3:]
             # 需完善
         if _url[0] == '/':
             resource_url = self.request_type + '://' + self.domain + _url
@@ -123,6 +125,7 @@ class WebsiteDownload:
         cur_dir = os.path.dirname(download_file_dir)
         with open(download_file_dir, 'r') as f:
             css_content = '\n'.join(f.readlines())
+            css_content = css_content.replace(';', ';\n')
             # 不知道为什么分组不可用
             css_url_list = re.findall(r'\(.+\.jpeg|\(.+\.png|\(.+\.jpg|\(.+\.gif', css_content)
             css_url_list = [item.replace('(', '') for item in css_url_list]
@@ -137,6 +140,7 @@ class WebsiteDownload:
                 img_dir = os.path.join(_cur_dir, left_dir)
                 img_uri = img_dir.split(self.download_dir)[-1].replace('\\', '/')
                 img_url = self.request_type + '://' + self.domain + img_uri
+                self.create_assets_path_dir(img_uri)
                 WebsiteDownload.store_file_content(img_url, img_dir)
 
     def convert_and_download_assets_src(self, content):
@@ -145,9 +149,11 @@ class WebsiteDownload:
         :param content: 当前页面代码
         :return: 变更静态文件链接后的页面代码
         """
+        content = content.replace('>', '>\n')
         for url_type in ['src', 'href']:
             file_type_reg = '(%s)' % '|'.join(['.+?\.%s' % t for t in self.download_type_list])
-            url_list = re.findall('%s=%s' % (url_type, file_type_reg), content)
+            reg_str = '%s=%s' % (url_type, file_type_reg)
+            url_list = re.findall(reg_str, content)
             tmp_url_list = list()
             for url in url_list:
                 _url = re.sub(r"""%s="|'""" % url_type, '', url)
@@ -167,9 +173,6 @@ class WebsiteDownload:
                         continue
 
                     download_file_src, download_file_dir, local_url = self.create_assets_path_dir(_url)
-                    print local_url
-                    print download_file_src
-                    print download_file_dir
 
                     # 下载静态资源
                     WebsiteDownload.store_file_content(download_file_src, download_file_dir)
